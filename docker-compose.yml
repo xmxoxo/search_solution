@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  ime-api:
+    build: .
+    container_name: ime-api
+    restart: unless-stopped
+    ports:
+      - "5310:5310"
+    environment:
+      - API_HOST=0.0.0.0
+      - API_PORT=5310
+    volumes:
+      - ./config:/app/config
+      - ./logs:/app/logs
+    command: uvicorn api.main:app --host 0.0.0.0 --port 5310
+    networks:
+      - ime-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5310/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  ime-webui:
+    build: .
+    container_name: ime-webui
+    restart: unless-stopped
+    ports:
+      - "5320:5320"
+    environment:
+      - WEBUI_HOST=0.0.0.0
+      - WEBUI_PORT=5320
+    volumes:
+      - ./config:/app/config
+      - ./logs:/app/logs
+    command: streamlit run webui/main.py --server.port 5320 --server.address 0.0.0.0
+    networks:
+      - ime-network
+    depends_on:
+      - ime-api
+
+networks:
+  ime-network:
+    driver: bridge
