@@ -67,3 +67,14 @@ class ErrorResponse(BaseModel):
     error: str
     message: str
     details: Optional[Dict[str, Any]] = None
+
+class CollectionStats(BaseModel):
+    exists: bool
+    collection_name: Optional[str] = None
+    count: int = 0
+    indexes: List[Dict[str, Any]] = []
+
+class StatsResponse(BaseModel):
+    resource_types: List[str]
+    collections: Dict[str, CollectionStats]
+    total_count: int

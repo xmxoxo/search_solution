@@ -139,21 +139,42 @@ elif page == "数据导入":
                             }]
                         }
                         
-                        response = requests.post(
-                            f"{API_BASE_URL}/api/v1/data/insert",
-                            json=data,
-                            timeout=60
-                        )
+                        with st.spinner("正在导入数据..."):
+                            response = requests.post(
+                                f"{API_BASE_URL}/api/v1/data/insert",
+                                json=data,
+                                timeout=60
+                            )
                         
+                        st.subheader("导入结果")
                         if response.status_code == 200:
                             result = response.json()
-                            st.success(f"成功导入 {result.get('ingested_count')} 条数据")
-                            if result.get('failed_ids'):
-                                st.warning(f"失败: {result.get('failed_ids')}")
+                            ingested_count = result.get('ingested_count', 0)
+                            failed_ids = result.get('failed_ids', [])
+                            task_id = result.get('task_id')
+                            
+                            st.success(f"✅ 导入完成！成功: {ingested_count} 条，失败: {len(failed_ids)} 条")
+                            
+                            if task_id:
+                                st.info(f"任务ID: {task_id}")
+                            
+                            if failed_ids:
+                                st.warning(f"失败的ID: {', '.join(failed_ids)}")
+                            
+                            with st.expander("查看完整响应"):
+                                st.json(result)
                         else:
-                            st.error(f"导入失败: {response.text}")
+                            st.error(f"❌ 导入失败 (状态码: {response.status_code})")
+                            with st.expander("查看错误详情"):
+                                st.json(response.json())
+                    except json.JSONDecodeError:
+                        st.error("❌ 其他字段JSON格式错误，请检查输入")
+                    except requests.exceptions.Timeout:
+                        st.error("❌ 请求超时，请检查API服务是否正常运行")
+                    except requests.exceptions.ConnectionError:
+                        st.error("❌ 无法连接到API服务，请检查服务是否启动")
                     except Exception as e:
-                        st.error(f"导入异常: {e}")
+                        st.error(f"❌ 导入异常: {str(e)}")
     
     else:
         st.subheader("JSON文件导入")
@@ -171,14 +192,36 @@ elif page == "数据导入":
                             json={"resource_type": resource_type, "items": data},
                             timeout=120
                         )
+                    
+                    st.subheader("导入结果")
+                    if response.status_code == 200:
+                        result = response.json()
+                        ingested_count = result.get('ingested_count', 0)
+                        failed_ids = result.get('failed_ids', [])
+                        task_id = result.get('task_id')
                         
-                        if response.status_code == 200:
-                            result = response.json()
-                            st.success(f"成功导入 {result.get('ingested_count')} 条数据")
-                        else:
-                            st.error(f"导入失败: {response.text}")
+                        st.success(f"✅ 导入完成！成功: {ingested_count} 条，失败: {len(failed_ids)} 条")
+                        
+                        if task_id:
+                            st.info(f"任务ID: {task_id}")
+                        
+                        if failed_ids:
+                            st.warning(f"失败的ID: {', '.join(failed_ids)}")
+                        
+                        with st.expander("查看完整响应"):
+                            st.json(result)
+                    else:
+                        st.error(f"❌ 导入失败 (状态码: {response.status_code})")
+                        with st.expander("查看错误详情"):
+                            st.json(response.json())
+            except json.JSONDecodeError:
+                st.error("❌ JSON文件格式错误，请检查文件内容")
+            except requests.exceptions.Timeout:
+                st.error("❌ 请求超时，请检查API服务是否正常运行")
+            except requests.exceptions.ConnectionError:
+                st.error("❌ 无法连接到API服务，请检查服务是否启动")
             except Exception as e:
-                st.error(f"文件解析失败: {e}")
+                st.error(f"❌ 文件解析失败: {str(e)}")
 
 elif page == "关于":
     st.header("关于")

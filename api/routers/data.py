@@ -4,7 +4,9 @@ from fastapi import APIRouter, Request, HTTPException
 from api.models.schemas import (
     DataInsertRequest,
     DataInsertResponse,
-    ErrorResponse
+    ErrorResponse,
+    StatsResponse,
+    CollectionStats
 )
 from api.core.embedding import g_embedding
 from api.core.milvus_client import g_milvus
@@ -18,8 +20,11 @@ def generate_embedding_text(item: dict, resource_type: str) -> str:
     fields = item.get("fields", {})
     parts = []
     
+    if "title" in fields:
+        parts.append(fields["title"])
+    
     if resource_type == "expert":
-        if "name" in fields:
+        if "name" in fields and "title" not in fields:
             parts.append(fields["name"])
         if "research_direction" in fields:
             parts.append(fields["research_direction"])
@@ -29,7 +34,7 @@ def generate_embedding_text(item: dict, resource_type: str) -> str:
             parts.append(fields["specialty"])
     
     elif resource_type == "project":
-        if "name" in fields:
+        if "name" in fields and "title" not in fields:
             parts.append(fields["name"])
         if "description" in fields:
             parts.append(fields["description"])
@@ -38,14 +43,16 @@ def generate_embedding_text(item: dict, resource_type: str) -> str:
     
     elif resource_type == "patent":
         if "title" in fields:
-            parts.append(fields["title"])
+            pass
+        elif "name" in fields:
+            parts.append(fields["name"])
         if "abstract" in fields:
             parts.append(fields["abstract"])
         if "summary" in fields:
             parts.append(fields["summary"])
     
     elif resource_type == "enterprise":
-        if "name" in fields:
+        if "name" in fields and "title" not in fields:
             parts.append(fields["name"])
         if "business_scope" in fields:
             parts.append(fields["business_scope"])
@@ -54,18 +61,20 @@ def generate_embedding_text(item: dict, resource_type: str) -> str:
     
     elif resource_type == "paper":
         if "title" in fields:
-            parts.append(fields["title"])
+            pass
+        elif "name" in fields:
+            parts.append(fields["name"])
         if "abstract" in fields:
             parts.append(fields["abstract"])
     
     elif resource_type == "institution":
-        if "name" in fields:
+        if "name" in fields and "title" not in fields:
             parts.append(fields["name"])
         if "research_focus" in fields:
             parts.append(fields["research_focus"])
     
     elif resource_type == "tec":
-        if "name" in fields:
+        if "name" in fields and "title" not in fields:
             parts.append(fields["name"])
         if "description" in fields:
             parts.append(fields["description"])
@@ -163,6 +172,45 @@ async def insert_data(
         
     except Exception as e:
         g_logger.error(f"[{request_id}] Data insert error: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail={"error": "internal_error", "message": str(e)}
+        )
+
+@router.get(
+    "/data/stats",
+    response_model=StatsResponse,
+    responses={
+        500: {"model": ErrorResponse, "description": "服务器内部错误"}
+    }
+)
+async def get_stats(request: Request):
+    """
+    查询数据统计接口
+    
+    返回所有资源类型的数据情况，包括数据量和索引状态。
+    """
+    request_id = getattr(request.state, "request_id", "unknown")
+    
+    try:
+        collections = {}
+        total_count = 0
+        
+        for resource_type in RESOURCE_TYPES:
+            stats = g_milvus.get_collection_stats(resource_type)
+            collections[resource_type] = CollectionStats(**stats)
+            total_count += stats.get("count", 0)
+        
+        g_logger.info(f"[{request_id}] Stats query completed: total {total_count} records")
+        
+        return StatsResponse(
+            resource_types=RESOURCE_TYPES,
+            collections=collections,
+            total_count=total_count
+        )
+        
+    except Exception as e:
+        g_logger.error(f"[{request_id}] Stats query error: {e}")
         raise HTTPException(
             status_code=500,
             detail={"error": "internal_error", "message": str(e)}

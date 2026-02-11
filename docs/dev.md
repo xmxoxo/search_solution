@@ -353,6 +353,64 @@ docker-compose up -d
 | `embedding:{hash}` | 7d | dense + sparse向量 |
 | `match_result:{hash}` | 1h | 完整匹配结果 |
 
+### 7.4 CSV数据导入工具
+
+**工具路径：** `tools/import_csv.py`
+
+**功能：** 从CSV文件批量导入数据到向量数据库
+
+**CSV格式要求：**
+- 首行为字段名
+- 必须包含字段：`id`, `title`, `body`
+
+**使用方法：**
+
+```bash
+# 基本用法
+python tools/import_csv.py --csv <CSV文件路径> --resource <资源类型>
+
+# 导入tec成果数据
+python tools/import_csv.py --csv F:\project\middle_group\tec_data\tec_body.csv --resource tec
+
+# 试运行模式（不实际写入数据，用于测试）
+python tools/import_csv.py --csv F:\project\middle_group\tec_data\tec_body.csv --resource tec --dry-run
+
+# 自定义批次大小
+python tools/import_csv.py --csv F:\project\middle_group\tec_data\tec_body.csv --resource tec --batch-size 50
+```
+
+**参数说明：**
+
+| 参数 | 说明 | 必填 |
+|------|------|------|
+| `--csv` | CSV文件路径 | 是 |
+| `--resource` | 资源类型（expert/project/patent/enterprise/paper/institution/tec） | 是 |
+| `--batch-size` | 批次大小，默认100 | 否 |
+| `--dry-run` | 试运行模式，不写入数据 | 否 |
+
+**工具特性：**
+- 自动读取CSV文件并解析
+- 调用BGE-M3生成向量
+- 批量写入Milvus向量数据库
+- 实时进度条显示
+- 详细的成功/失败统计
+- 试运行模式支持
+
+
+```
+# 1. 先删除旧的tec Collection
+python tools/manage_collection.py --delete ime_tec
+
+# 2. 重新导入数据
+python tools/import_csv.py --csv F:\project\middle_group\tec_data\tec_body.csv --resource tec
+
+# 可调整批次大小
+python tools/import_csv.py --csv F:\project\middle_group\tec_data\tec_body.csv --resource tec --batch-size 200
+
+python tools/import_csv.py --csv F:\project\middle_group\tec_data\tec_clean.csv --resource tec --batch-size 300
+
+```
+
 ---
 
 ## 八、配置信息汇总
@@ -395,6 +453,13 @@ MILVUS_PORT = 19530
 | 2026-02-09 | 第三阶段完成 | FastAPI框架、3个核心接口 |
 | 2026-02-09 | 第四阶段完成 | Streamlit WebUI |
 | 2026-02-09 | 第五阶段完成 | Docker容器化、启动脚本 |
+| 2026-02-10 | WebUI优化 | 导航改为radio列表样式 |
+| 2026-02-10 | 数据导入界面优化 | 增加详细的导入结果反馈和错误提示 |
+| 2026-02-10 | 添加得分阈值过滤 | MIN_SCORE_THRESHOLD=0.48，过滤低得分结果 |
+| 2026-02-10 | 资源类型result改为tec | 修改所有相关配置和代码 |
+| 2026-02-10 | 添加公共title字段 | 所有数据类型支持title字段 |
+| 2026-02-10 | 配置文件添加注释 | app_config.py所有参数添加中文注释 |
+| 2026-02-10 | 创建CSV导入工具 | tools/import_csv.py 批量导入数据 |
 
 ---
 

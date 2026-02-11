@@ -4,7 +4,7 @@ from api.core.query_parser import g_query_parser
 from api.core.milvus_client import g_milvus
 from api.utils.logger import g_logger
 from api.utils.cache import g_cache, CacheKeys, CacheTTL
-from config.app_config import RESOURCE_TYPES, DEFAULT_TOP_K, DEFAULT_USE_HYBRID
+from config.app_config import RESOURCE_TYPES, DEFAULT_TOP_K, DEFAULT_USE_HYBRID, MIN_SCORE_THRESHOLD
 
 class MatchResult:
     def __init__(
@@ -87,7 +87,13 @@ class Matcher:
                         top_k=top_k,
                         use_hybrid=use_hybrid
                     )
-                    results_by_type[resource_type] = results
+                    filtered_results = [
+                        r for r in results if r.get("score", 0) >= MIN_SCORE_THRESHOLD
+                    ]
+                    results_by_type[resource_type] = filtered_results
+                    g_logger.info(
+                        f"{resource_type}: {len(results)} results, {len(filtered_results)} after threshold filter"
+                    )
                 except Exception as e:
                     g_logger.warning(f"Search failed for {resource_type}: {e}")
                     results_by_type[resource_type] = []

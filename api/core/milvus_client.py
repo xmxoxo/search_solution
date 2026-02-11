@@ -50,12 +50,12 @@ class MilvusClient:
     
     def _get_collection_schema(self, resource_type: str) -> CollectionSchema:
         fields = [
-            FieldSchema(name="id", dtype=DataType.VARCHAR, max_length=64, is_primary=True),
+            FieldSchema(name="id", dtype=DataType.VARCHAR, max_length=256, is_primary=True),
             FieldSchema(name="dense_vector", dtype=DataType.FLOAT_VECTOR, dim=DENSE_VECTOR_DIM),
             FieldSchema(name="sparse_vector", dtype=DataType.SPARSE_FLOAT_VECTOR),
-            FieldSchema(name="source_id", dtype=DataType.VARCHAR, max_length=64),
-            FieldSchema(name="region", dtype=DataType.VARCHAR, max_length=32),
-            FieldSchema(name="maturity", dtype=DataType.VARCHAR, max_length=16),
+            FieldSchema(name="source_id", dtype=DataType.VARCHAR, max_length=256),
+            FieldSchema(name="region", dtype=DataType.VARCHAR, max_length=64),
+            FieldSchema(name="maturity", dtype=DataType.VARCHAR, max_length=32),
             FieldSchema(name="metadata", dtype=DataType.JSON),
         ]
         return CollectionSchema(fields=fields, description=f"Collection for {resource_type}")
@@ -111,9 +111,20 @@ class MilvusClient:
         source_id: Optional[str] = None,
         region: Optional[str] = None,
         maturity: Optional[str] = None,
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: Optional[Dict[str, Any]] = None,
+        skip_duplicate_check: bool = False
     ):
         collection = self.get_or_create_collection(resource_type)
+        
+        if not skip_duplicate_check:
+            existing = collection.query(
+                expr=f"id == '{id}'",
+                output_fields=["id"],
+                limit=1
+            )
+            if existing:
+                g_logger.warning(f"Document {id} already exists, skipping")
+                return False
         
         data = {
             "id": id,
@@ -128,6 +139,72 @@ class MilvusClient:
         collection.insert([data])
         collection.flush()
         g_logger.info(f"Inserted document {id} into {resource_type}")
+        return True
+    
+    async def insert_batch(
+        self,
+        resource_type: str,
+        items: List[Dict[str, Any]],
+        skip_duplicate_check: bool = False
+    ) -> int:
+        if not items:
+            return 0
+        
+        collection = self.get_or_create_collection(resource_type)
+        
+        unique_items = {}
+        for item in items:
+            item_id = item["id"]
+            if item_id not in unique_items:
+                unique_items[item_id] = item
+        
+        if len(unique_items) < len(items):
+            g_logger.warning(f"Found {len(items) - len(unique_items)} duplicate IDs in batch, removed")
+        
+        if not skip_duplicate_check:
+            existing_ids = set()
+            ids_to_check = list(unique_items.keys())
+            
+            for i in range(0, len(ids_to_check), 100):
+                batch_ids = ids_to_check[i:i+100]
+                id_list = ", ".join([f"'{id}'" for id in batch_ids])
+                expr = f"id in [{id_list}]"
+                
+                existing = collection.query(
+                    expr=expr,
+                    output_fields=["id"],
+                    limit=len(batch_ids)
+                )
+                
+                for item in existing:
+                    existing_ids.add(item["id"])
+            
+            if existing_ids:
+                g_logger.warning(f"Found {len(existing_ids)} existing IDs in database, skipping")
+                unique_items = {k: v for k, v in unique_items.items() if k not in existing_ids}
+        
+        if not unique_items:
+            return 0
+        
+        data_list = []
+        for item in unique_items.values():
+            data = {
+                "id": item["id"],
+                "dense_vector": item["dense_vector"],
+                "sparse_vector": item.get("sparse_vector") or {},
+                "source_id": item.get("source_id", item["id"]),
+                "region": item.get("region", ""),
+                "maturity": item.get("maturity", ""),
+                "metadata": item.get("metadata", {})
+            }
+            data_list.append(data)
+        
+        collection.insert(data_list)
+        collection.flush()
+        
+        inserted_count = len(data_list)
+        g_logger.debug(f"Batch inserted {inserted_count} documents into {resource_type}")
+        return inserted_count
     
     async def hybrid_search(
         self,
@@ -173,32 +250,43 @@ class MilvusClient:
             )
             
             combined_scores = {}
+            seen_ids = set()
+            
             for hits in dense_results:
                 for hit in hits:
                     doc_id = hit.entity.get("id")
-                    combined_scores[doc_id] = {"score": alpha * hit.score, "entity": hit.entity}
+                    if doc_id not in seen_ids:
+                        seen_ids.add(doc_id)
+                        combined_scores[doc_id] = {"score": alpha * hit.score, "entity": hit.entity}
             
             for hits in sparse_results:
                 for hit in hits:
                     doc_id = hit.entity.get("id")
                     if doc_id in combined_scores:
                         combined_scores[doc_id]["score"] += beta * hit.score
-                    else:
+                    elif doc_id not in seen_ids:
+                        seen_ids.add(doc_id)
                         combined_scores[doc_id] = {"score": beta * hit.score, "entity": hit.entity}
             
-            sorted_results = sorted(combined_scores.values(), key=lambda x: x["score"], reverse=True)[:top_k]
+            sorted_results = sorted(combined_scores.values(), key=lambda x: x["score"], reverse=True)
             
             final_results = []
+            seen_source_ids = set()
             for item in sorted_results:
                 entity = item["entity"]
-                final_results.append({
-                    "id": entity.get("id"),
-                    "source_id": entity.get("source_id"),
-                    "score": item["score"],
-                    "region": entity.get("region"),
-                    "maturity": entity.get("maturity"),
-                    "metadata": entity.get("metadata")
-                })
+                source_id = entity.get("source_id")
+                if source_id not in seen_source_ids:
+                    seen_source_ids.add(source_id)
+                    final_results.append({
+                        "id": entity.get("id"),
+                        "source_id": source_id,
+                        "score": item["score"],
+                        "region": entity.get("region"),
+                        "maturity": entity.get("maturity"),
+                        "metadata": entity.get("metadata")
+                    })
+                    if len(final_results) >= top_k:
+                        break
             return final_results
         else:
             results = collection.search(
@@ -211,17 +299,25 @@ class MilvusClient:
             )
             
             final_results = []
+            seen_source_ids = set()
             for hits in results:
                 for hit in hits:
                     entity = hit.entity
-                    final_results.append({
-                        "id": entity.get("id"),
-                        "source_id": entity.get("source_id"),
-                        "score": hit.score,
-                        "region": entity.get("region"),
-                        "maturity": entity.get("maturity"),
-                        "metadata": entity.get("metadata")
-                    })
+                    source_id = entity.get("source_id")
+                    if source_id not in seen_source_ids:
+                        seen_source_ids.add(source_id)
+                        final_results.append({
+                            "id": entity.get("id"),
+                            "source_id": source_id,
+                            "score": hit.score,
+                            "region": entity.get("region"),
+                            "maturity": entity.get("maturity"),
+                            "metadata": entity.get("metadata")
+                        })
+                        if len(final_results) >= top_k:
+                            break
+                if len(final_results) >= top_k:
+                    break
             return final_results
     
     def build_filter_expr(self, filters: Dict[str, Any]) -> Optional[str]:
@@ -241,6 +337,43 @@ class MilvusClient:
                 pass
         
         return " and ".join(conditions) if conditions else None
+    
+    def get_collection_stats(self, resource_type: str) -> Dict[str, Any]:
+        collection_name = f"ime_{resource_type}"
+        
+        self.connect()
+        
+        if not utility.has_collection(collection_name):
+            return {
+                "exists": False,
+                "count": 0,
+                "indexes": []
+            }
+        
+        collection = Collection(collection_name)
+        collection.load()
+        
+        count = collection.num_entities
+        
+        indexes = []
+        for index in collection.indexes:
+            indexes.append({
+                "field_name": index.field_name,
+                "index_type": index.params.get("index_type", "unknown")
+            })
+        
+        return {
+            "exists": True,
+            "collection_name": collection_name,
+            "count": count,
+            "indexes": indexes
+        }
+    
+    def list_collections(self) -> List[str]:
+        self.connect()
+        collections = utility.list_collections()
+        ime_collections = [c for c in collections if c.startswith("ime_")]
+        return ime_collections
 
 g_milvus = MilvusClient()
 

@@ -74,6 +74,70 @@ class EmbeddingClient:
             embedding = await self.get_embedding(text, model, use_cache)
             results.append(embedding)
         return results
+    
+    async def get_embeddings_batch(
+        self,
+        texts: List[str],
+        model: Optional[str] = None,
+        use_cache: bool = True
+    ) -> List[Tuple[List[float], Optional[Dict[int, float]]]]:
+        if not texts:
+            return []
+        
+        uncached_texts = []
+        uncached_indices = []
+        results = [None] * len(texts)
+        
+        if use_cache:
+            for i, text in enumerate(texts):
+                cache_key = g_cache.generate_key(CacheKeys.EMBEDDING, text)
+                cached = await g_cache.get_json(cache_key)
+                if cached:
+                    results[i] = (cached.get("dense"), cached.get("sparse"))
+                else:
+                    uncached_texts.append(text)
+                    uncached_indices.append(i)
+        else:
+            uncached_texts = texts
+            uncached_indices = list(range(len(texts)))
+        
+        if not uncached_texts:
+            return results
+        
+        if self._client is None:
+            self.init()
+        
+        try:
+            response = await self._client.embeddings.create(
+                input=uncached_texts,
+                model=model or EMBEDDING_MODEL_NAME,
+                encoding_format="float"
+            )
+            
+            for i, data in enumerate(response.data):
+                dense_vector = data.embedding
+                sparse_vector = None
+                
+                if hasattr(data, 'sparse_embedding'):
+                    sparse_vector = data.sparse_embedding
+                elif hasattr(data, 'sparse'):
+                    sparse_vector = data.sparse
+                
+                original_idx = uncached_indices[i]
+                results[original_idx] = (dense_vector, sparse_vector)
+                
+                if use_cache:
+                    cache_key = g_cache.generate_key(CacheKeys.EMBEDDING, uncached_texts[i])
+                    await g_cache.setex_json(
+                        cache_key,
+                        CacheTTL.EMBEDDING,
+                        {"dense": dense_vector, "sparse": sparse_vector}
+                    )
+            
+            return results
+        except Exception as e:
+            g_logger.error(f"Batch embedding error: {e}")
+            raise
 
 g_embedding = EmbeddingClient()
 
