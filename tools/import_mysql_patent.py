@@ -28,21 +28,31 @@ MAX_ROWS_PER_FILE = 10000
 DATA_DIR = PROJECT_ROOT / "data"
 LAST_ID_FILE = DATA_DIR / "last_patent_id.txt"
 
-def save_last_successful_id(last_id: str):
+def save_last_successful_id(last_id: str, key=""):
     """保存最后成功的ID到文件"""
     try:
         DATA_DIR.mkdir(exist_ok=True)
-        with open(LAST_ID_FILE, 'w', encoding='utf-8') as f:
+        if key:
+            fname = DATA_DIR / f"last_patent_id_{key}.txt"
+        else:
+            fname = LAST_ID_FILE
+
+        with open(fname, 'w', encoding='utf-8') as f:
             f.write(last_id)
         g_logger.info(f"Saved last successful ID: {last_id}")
     except Exception as e:
         g_logger.error(f"Failed to save last successful ID: {e}")
 
-def get_last_successful_id() -> str:
+def get_last_successful_id(key="") -> str:
     """获取最后成功的ID"""
     try:
-        if LAST_ID_FILE.exists():
-            with open(LAST_ID_FILE, 'r', encoding='utf-8') as f:
+        if key:
+            fname = DATA_DIR / f"last_patent_id_{key}.txt"
+        else:
+            fname = LAST_ID_FILE
+
+        if fname.exists():
+            with open(fname, 'r', encoding='utf-8') as f:
                 last_id = f.read().strip()
             g_logger.info(f"Loaded last successful ID: {last_id}")
             return last_id
@@ -471,7 +481,7 @@ async def import_mysql_patent(
     g_logger.info(f"Starting MySQL patent import to {resource_type}")
     # 自动读取最新ID
     if start_id is None:
-        start_id = get_last_successful_id()
+        start_id = get_last_successful_id(key=start_id)
     g_logger.info(f"Batch size: {batch_size}, Limit: {limit}, Save intermediate: {save_intermediate}, Start ID: {start_id}")
     
     failed_ids_file = f"failed_patent_ids_{resource_type}.txt"
@@ -533,7 +543,7 @@ async def import_mysql_patent(
                 # 保存最后成功的ID
                 if success > 0 and patents:
                     last_successful_id = patents[-1]['id']
-                    save_last_successful_id(last_successful_id)
+                    save_last_successful_id(last_successful_id, key=start_id)
                 
                 # 保存中间数据
                 if save_intermediate:

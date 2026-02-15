@@ -1364,7 +1364,6 @@ python tools/import_mysql_patent.py --from-file data/patent_1_patent.csv --resou
 python tools/import_mysql_patent.py 
 python tools/import_mysql_patent.py --batch-size 20
 
-python tools/import_mysql_patent.py --start-id "CN200410091839.7"
 
 从指定的ID 导入 10条
 python tools/import_mysql_patent.py --start-id "CN00100544.8" --limit 10
@@ -1378,11 +1377,13 @@ python tools/import_mysql_patent.py --limit 20
 从指定文件导入
 python tools/import_mysql_patent.py --from-file data/patent_CN00100160.4_patent.csv --resource patent
 
+
+python tools/import_mysql_patent.py --start-id "CN200410091839.7"
+
 ```
 
 分段导入：
 
-```
 
 ```
 [
