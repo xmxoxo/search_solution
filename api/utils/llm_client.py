@@ -1,8 +1,15 @@
 import json
+import re
 from typing import Any, Dict, Optional
 from openai import AsyncOpenAI
 from config.app_config import ONE_API_KEY, ONE_API_BASE_URL, LLM_MODEL_NAME
 from api.utils.logger import g_logger
+
+def filter_think(text: str) -> str:
+    """过滤思维链内容"""
+    if not text:
+        return ""
+    return re.sub(r'<think>.*?</think>', '', str(text), flags=re.DOTALL).strip()
 
 class LLMClient:
     _instance: Optional["LLMClient"] = None
@@ -41,9 +48,10 @@ class LLMClient:
                 model=model or LLM_MODEL_NAME,
                 messages=messages,
                 temperature=temperature,
-                max_tokens=max_tokens
+                # max_tokens=max_tokens
             )
-            return response.choices[0].message.content.strip()
+            result = response.choices[0].message.content.strip()
+            return filter_think(result)
         except Exception as e:
             g_logger.error(f"LLM chat completion error: {e}")
             raise
@@ -61,13 +69,19 @@ class LLMClient:
             system_prompt=system_prompt,
             model=model,
             temperature=temperature,
-            max_tokens=max_tokens
+            # max_tokens=max_tokens
         )
-        
         try:
-            result = result.strip()
+            '''
+            # result = filter_think(result).strip()
+            print()
+            print("result:", result)
+            print()
+            '''
             if result.startswith("```json"):
                 result = result[7:]
+            if result.startswith("```"):
+                result = result[3:]
             if result.endswith("```"):
                 result = result[:-3]
             result = result.strip()

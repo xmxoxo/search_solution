@@ -7,6 +7,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 import streamlit as st
 import requests
 import json
+import plotly.graph_objects as go
 from config.app_config import WEBUI_PORT, RESOURCE_TYPES
 
 API_BASE_URL = "http://192.168.40.64:5310"
@@ -42,14 +43,14 @@ if page == "匹配测试":
         resource_types = st.multiselect(
             "资源类型",
             options=RESOURCE_TYPES,
-            default=["expert", "project"]
+            default=["tec"]
         )
     
     with col2:
         top_k = st.slider("返回数量", 1, 50, 10)
     
     with col3:
-        use_hybrid = st.checkbox("启用混合检索", value=True)
+        use_multi_level = st.checkbox("启用多维度匹配", value=True)
     
     if st.button("开始匹配", type="primary"):
         if not query.strip():
@@ -63,7 +64,8 @@ if page == "匹配测试":
                             "query": query,
                             "resource_types": resource_types,
                             "top_k": top_k,
-                            "use_hybrid": use_hybrid
+                            "use_hybrid": True,
+                            "use_multi_level": use_multi_level
                         },
                         timeout=60
                     )
@@ -72,8 +74,15 @@ if page == "匹配测试":
                         result = response.json()
                         
                         st.subheader("解析结果")
-                        parsed = result.get("query_parsed", {})
-                        st.json(parsed)
+                        with st.expander("解析结果"):
+                            parsed = result.get("query_parsed", {})
+                            st.json(parsed)
+                        
+                        if use_multi_level:
+                            query_features = result.get("query_features", {})
+                            if query_features:
+                                with st.expander("查询特征提取", expanded=True):
+                                    st.json(query_features)
                         
                         st.subheader("匹配结果")
                         results_by_type = result.get("results_by_type", {})
@@ -86,16 +95,71 @@ if page == "匹配测试":
                                         with col_a:
                                             st.metric("得分", f"{item.get('score', 0):.4f}")
                                         with col_b:
+                                            title = item.get('metadata',{}).get("title")
+                                            st.write(f"**标题:** {title}")
                                             st.write(f"**ID:** {item.get('id')}")
                                             st.write(f"**来源:** {item.get('source_id')}")
                                             if item.get('region'):
                                                 st.write(f"**地域:** {item.get('region')}")
                                             if item.get('maturity'):
                                                 st.write(f"**阶段:** {item.get('maturity')}")
+                                            
+                                            if use_multi_level:
+                                                dim_scores = item.get('dimension_scores')
+                                                if dim_scores:
+                                                    st.write("**各维度得分:**")
+                                                    col_d1, col_d2, col_d3, col_d4, col_d5 = st.columns(5)
+                                                    col_d1.metric("语义", f"{dim_scores.get('semantic', 0):.4f}")
+                                                    col_d2.metric("领域", f"{dim_scores.get('domain', 0):.4f}")
+                                                    col_d3.metric("方法", f"{dim_scores.get('method', 0):.4f}")
+                                                    col_d4.metric("应用", f"{dim_scores.get('application', 0):.4f}")
+                                                    col_d5.metric("创新", f"{dim_scores.get('innovation', 0):.4f}")
+                                                    
+                                                    categories = ['语义', '领域', '方法', '应用', '创新']
+                                                    scores = [
+                                                        dim_scores.get('semantic', 0),
+                                                        dim_scores.get('domain', 0),
+                                                        dim_scores.get('method', 0),
+                                                        dim_scores.get('application', 0),
+                                                        dim_scores.get('innovation', 0)
+                                                    ]
+                                                    
+                                                    fig = go.Figure()
+                                                    fig.add_trace(go.Scatterpolar(
+                                                        r=scores,
+                                                        theta=categories,
+                                                        fill='toself',
+                                                        name='得分',
+                                                        line=dict(color='rgb(31, 119, 180)'),
+                                                        fillcolor='rgba(31, 119, 180, 0.3)'
+                                                    ))
+                                                    fig.update_layout(
+                                                        polar=dict(
+                                                            radialaxis=dict(
+                                                                visible=True,
+                                                                range=[0, 1]
+                                                            )),
+                                                        showlegend=False,
+                                                        width=300,
+                                                        height=300,
+                                                        margin=dict(l=20, r=20, t=20, b=20)
+                                                    )
+                                                    st.plotly_chart(fig, use_container_width=True)
+                                                
+                                                explanation = item.get('explanation')
+                                                if explanation:
+                                                    st.write(f"**匹配解释:** {explanation}")
+                                                
+                                                extracted_info = item.get('extracted_info')
+                                                if extracted_info:
+                                                    with st.expander("提取信息"):
+                                                        st.json(extracted_info)
+                                            
                                             if item.get('metadata'):
                                                 with st.expander("详细信息"):
                                                     st.json(item.get('metadata'))
-                        
+                                        st.divider()
+
                         meta = result.get("meta", {})
                         st.info(f"共找到 {meta.get('total_candidates', 0)} 条结果，耗时 {meta.get('retrieval_time_ms', 0)}ms")
                     else:

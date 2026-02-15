@@ -9,8 +9,8 @@ class MatchRequest(BaseModel):
         description=f"资源类型列表，可选: {RESOURCE_TYPES}"
     )
     top_k: int = Field(default=DEFAULT_TOP_K, ge=1, le=100, description="返回结果数量")
-    use_hybrid: bool = Field(default=DEFAULT_USE_HYBRID, description="是否启用混合检索")
     use_cache: bool = Field(default=True, description="是否使用缓存")
+    use_multi_level: bool = Field(default=True, description="是否使用多级相似度计算")
 
 class ParsedQueryFilters(BaseModel):
     region: Optional[List[str]] = None
@@ -21,6 +21,19 @@ class ParsedQueryResult(BaseModel):
     intent_text: str = ""
     filters: ParsedQueryFilters = ParsedQueryFilters()
 
+class DimensionScores(BaseModel):
+    semantic: float = 0.0
+    domain: float = 0.0
+    method: float = 0.0
+    application: float = 0.0
+    innovation: float = 0.0
+
+class ExtractedInfo(BaseModel):
+    domain: str = ""
+    method: str = ""
+    application: str = ""
+    innovation: str = ""
+
 class MatchResultItem(BaseModel):
     id: str
     source_id: str
@@ -28,11 +41,18 @@ class MatchResultItem(BaseModel):
     region: Optional[str] = None
     maturity: Optional[str] = None
     metadata: Optional[Dict[str, Any]] = None
+    dimension_scores: Optional[DimensionScores] = None
+    explanation: Optional[str] = None
+    extracted_info: Optional[ExtractedInfo] = None
+
+class QueryFeatures(BaseModel):
+    extracted_texts: Optional[Dict[str, str]] = None
 
 class MatchResponse(BaseModel):
     request_id: Optional[str] = None
     query_parsed: Optional[ParsedQueryResult] = None
     results_by_type: Dict[str, List[MatchResultItem]] = {}
+    query_features: Optional[QueryFeatures] = None
     meta: Optional[Dict[str, Any]] = None
 
 class ParseQueryRequest(BaseModel):

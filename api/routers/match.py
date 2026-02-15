@@ -6,6 +6,7 @@ from api.models.schemas import (
     MatchResponse,
     MatchResultItem,
     ParsedQueryResult,
+    QueryFeatures,
     ErrorResponse
 )
 from api.core.matcher import g_matcher
@@ -40,8 +41,8 @@ async def match_resources(
             query=body.query,
             resource_types=body.resource_types,
             top_k=body.top_k,
-            use_hybrid=body.use_hybrid,
-            use_cache=body.use_cache
+            use_cache=body.use_cache,
+            use_multi_level=body.use_multi_level
         )
         
         elapsed_ms = int((time.time() - start_time) * 1000)
@@ -59,14 +60,20 @@ async def match_resources(
         if "query_parsed" in result:
             query_parsed = ParsedQueryResult(**result["query_parsed"])
         
+        query_features = None
+        if "query_features" in result:
+            query_features = QueryFeatures(**result["query_features"])
+        
         response = MatchResponse(
             request_id=request_id,
             query_parsed=query_parsed,
             results_by_type=results_by_type,
+            query_features=query_features,
             meta={
                 "total_candidates": total_candidates,
                 "retrieval_time_ms": elapsed_ms,
-                "use_hybrid": body.use_hybrid
+                "use_hybrid": True,
+                "use_multi_level": body.use_multi_level
             }
         )
         

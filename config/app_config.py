@@ -23,22 +23,22 @@ WEBUI_HOST = os.getenv("WEBUI_HOST", "0.0.0.0")
 # WebUI端口
 WEBUI_PORT = int(os.getenv("WEBUI_PORT", 5320))
 
-# One-API服务密钥
-ONE_API_KEY = os.getenv("ONE_API_KEY", 'sk-GQtwF5ag8p6m8wWf1232B8D5E17f4455A5C14e7a2d393aEe')
+# One-API服务密钥 GQtwF5ag8p6m8wWf1232B8D5E17f4455A5C14e7a2d393aEe
+ONE_API_KEY = os.getenv("ONE_API_KEY", 'sk-pLLG2ucf61sKFjMxA0Fd11E88c734427A078Bc554e516e26')
 # One-API服务地址
 ONE_API_BASE_URL = os.getenv("ONE_API_BASE_URL", "http://192.168.15.111:3000/v1")
 
-# Embedding模型名称（用于生成向量）
+# Embedding模型名称（用于生成向量） text-embedding-v4  bge-m3:latest
 EMBEDDING_MODEL_NAME = os.getenv("EMBEDDING_MODEL_NAME", "bge-m3:latest")
-# LLM模型名称（用于查询解析）
-LLM_MODEL_NAME = os.getenv("LLM_MODEL_NAME", "qwen3-max")
+# LLM模型名称（用于查询解析） qwen-max  qwen3:32b
+LLM_MODEL_NAME = os.getenv("LLM_MODEL_NAME", "qwen-max")
 
 # Redis连接配置
 GBL_REDIS_CONFIG = {
     "host": os.getenv("REDIS_HOST", "192.168.15.111"),  # Redis主机地址
-    "port": int(os.getenv("REDIS_PORT", 6379)),          # Redis端口
-    "password": os.getenv("REDIS_PASSWORD", ""),         # Redis密码（可选）
-    "db": int(os.getenv("REDIS_DB", 1))                  # Redis数据库编号
+    "port": int(os.getenv("REDIS_PORT", 6379)),         # Redis端口
+    "password": os.getenv("REDIS_PASSWORD", ""),        # Redis密码（可选）
+    "db": int(os.getenv("REDIS_DB", 1))                 # Redis数据库编号
 }
 
 # SSDB连接地址
@@ -68,6 +68,15 @@ HYBRID_SEARCH_BETA = float(os.getenv("HYBRID_SEARCH_BETA", 0.3))
 # 匹配结果最低得分阈值（低于此分数的结果将被过滤）
 MIN_SCORE_THRESHOLD = float(os.getenv("MIN_SCORE_THRESHOLD", 0.48))
 
+# 多维度相似度权重配置
+MULTI_LEVEL_WEIGHTS = {
+    "semantic": float(os.getenv("WEIGHT_SEMANTIC", 0.30)),          # 语义
+    "domain": float(os.getenv("WEIGHT_DOMAIN", 0.20)),              # 技术领域
+    "method": float(os.getenv("WEIGHT_METHOD", 0.15)),              # 技术方法
+    "application": float(os.getenv("WEIGHT_APPLICATION", 0.25)),    # 应用场景
+    "innovation": float(os.getenv("WEIGHT_INNOVATION", 0.10))       # 创新点 
+}
+
 # 默认返回结果数量
 DEFAULT_TOP_K = int(os.getenv("DEFAULT_TOP_K", 10))
 # 是否默认启用混合检索
@@ -79,6 +88,9 @@ CACHE_TTL_LLM_PARSE = int(os.getenv("CACHE_TTL_LLM_PARSE", 86400))
 CACHE_TTL_EMBEDDING = int(os.getenv("CACHE_TTL_EMBEDDING", 604800))
 # 匹配结果缓存时间（秒，默认30秒）
 CACHE_TTL_MATCH_RESULT = int(os.getenv("CACHE_TTL_MATCH_RESULT", 30))
+
+# 中台数据库只读
+DATABASE_CONNECT_STRING = "mysql+pymysql://readonly_1633:9a06_qkiLMhQq5T@rm-bp1r9uw2zyl43lrxpdo.mysql.rds.aliyuncs.com:3306/data_middle_group"
 
 # 支持的资源类型列表
 RESOURCE_TYPES = [

@@ -10,6 +10,7 @@ from api.models.schemas import (
 )
 from api.core.embedding import g_embedding
 from api.core.milvus_client import g_milvus
+from api.core.feature_extractor import g_feature_extractor
 from api.utils.logger import g_logger
 from config.app_config import RESOURCE_TYPES
 
@@ -121,44 +122,87 @@ async def insert_data(
         g_logger.info(f"[{request_id}] Async processing started, task_id: {task_id}")
     
     try:
+        v1_insert_items = []
+        v2_insert_items = []
+        
         for item in body.items:
             try:
-                raw_text = item.raw_text_for_embedding
-                if not raw_text:
-                    raw_text = generate_embedding_text(
-                        {"fields": item.fields},
-                        body.resource_type
-                    )
+                title = item.fields.get("title", "")
+                body_text = item.fields.get("body", "")
                 
-                if not raw_text or not raw_text.strip():
-                    g_logger.warning(f"[{request_id}] Empty embedding text for item {item.id}")
+                if not body_text:
+                    g_logger.warning(f"[{request_id}] Empty body text for item {item.id}")
                     failed_ids.append(item.id)
                     continue
                 
-                dense_vector, sparse_vector = await g_embedding.get_embedding(
-                    raw_text,
-                    use_cache=False
-                )
+                # 生成v1混合检索向量
+                full_text = f"{title} {body_text}"
+                dense_vector, sparse_vector = await g_embedding.get_embedding(full_text, use_cache=False)
+                
+                # 处理 sparse_vector 格式
+                if sparse_vector is None:
+                    sparse_vector = {}
+                elif hasattr(sparse_vector, 'indices') and hasattr(sparse_vector, 'values'):
+                    sparse_vector = dict(zip(sparse_vector.indices, sparse_vector.values))
+                elif not isinstance(sparse_vector, dict):
+                    sparse_vector = {}
+                
+                # 生成v2扩展维度向量
+                features = await g_feature_extractor.extract_all_features(title, body_text)
                 
                 region = item.fields.get("region", "")
                 maturity = item.fields.get("maturity", "")
                 
-                await g_milvus.insert(
-                    resource_type=body.resource_type,
-                    id=item.id,
-                    dense_vector=dense_vector,
-                    sparse_vector=sparse_vector,
-                    source_id=item.fields.get("source_id", item.id),
-                    region=region,
-                    maturity=maturity,
-                    metadata=item.fields
-                )
+                # v1数据（混合检索）
+                v1_insert_items.append({
+                    'id': item.id,
+                    'dense_vector': dense_vector,
+                    'sparse_vector': sparse_vector,
+                    'source_id': item.fields.get("source_id", item.id),
+                    'region': region,
+                    'maturity': maturity,
+                    'metadata': item.fields
+                })
+                
+                # v2数据（扩展维度）
+                v2_insert_items.append({
+                    'id': item.id,
+                    'vectors': {
+                        'domain_vector': features['domain_vector'],
+                        'method_vector': features['method_vector'],
+                        'application_vector': features['application_vector'],
+                        'innovation_vector': features['innovation_vector']
+                    },
+                    'extracted_texts': features['extracted_texts'],
+                    'source_id': item.fields.get("source_id", item.id),
+                    'region': region,
+                    'maturity': maturity,
+                    'metadata': item.fields
+                })
                 
                 ingested_count += 1
                 
             except Exception as e:
-                g_logger.error(f"[{request_id}] Failed to insert item {item.id}: {e}")
+                g_logger.error(f"[{request_id}] Failed to process item {item.id}: {e}")
                 failed_ids.append(item.id)
+        
+        # 插入v1数据（混合检索）
+        if v1_insert_items:
+            inserted_count = await g_milvus.insert_batch(
+                resource_type=body.resource_type,
+                items=v1_insert_items,
+                skip_duplicate_check=True
+            )
+            g_logger.info(f"[{request_id}] Inserted {inserted_count} items into v1 collection")
+        
+        # 插入v2数据（扩展维度）
+        if v2_insert_items:
+            inserted_count = await g_milvus.insert_batch_v2(
+                resource_type=body.resource_type,
+                items=v2_insert_items,
+                skip_duplicate_check=True
+            )
+            g_logger.info(f"[{request_id}] Inserted {inserted_count} items into v2 collections")
         
         g_logger.info(
             f"[{request_id}] Data insert completed: {ingested_count} success, {len(failed_ids)} failed"

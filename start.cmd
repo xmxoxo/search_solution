@@ -24,7 +24,8 @@ goto :help
 
 :start_api
 echo Starting API server on port 5310...
-uvicorn api.main:app --host 0.0.0.0 --port 5310 --reload
+uvicorn api.main:app --host 0.0.0.0 --port 5310
+rem  --reload
 goto :end
 
 :start_webui
