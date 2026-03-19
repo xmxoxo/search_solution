@@ -245,8 +245,10 @@ use_multi_level: bool = Field(default=True, description="是否使用多级相�
 python tools/import_csv.py --csv F:/data/tec_body.csv --resource tec
 
 # 新方式（多维度特征）
-python tools/import_csv.py --csv F:/data/tec_body.csv --resource tec --multi-level
-python tools/import_csv.py --csv F:\project\middle_group\tec_data\tec_clean.csv --resource tec --multi-level
+csvfile=F:/data/tec_body.csv
+csvfile=F:\project\middle_group\tec_data\tec_clean.csv
+
+python tools/import_csv.py --csv $csvfile$ --resource tec --multi-level
 
 ```
 
@@ -1252,6 +1254,7 @@ python tools/import_mysql_patent.py --from-file data/patent_1_patent.csv --batch
 # 从 指定的ID 之后开始导入 100条
 python tools/import_mysql_patent.py --start-id "CN00100544.8" --limit 100
 
+
 # 接着继续导入100条 
 python tools/import_mysql_patent.py --limit 100
 ```
@@ -1259,11 +1262,11 @@ python tools/import_mysql_patent.py --limit 100
 #### 完整命令示例
 
 ```
-# 从 ID 10000 之后导入，限制 1000 条，批次大小 50
-python tools/import_mysql_patent.py --start-id 10000 --limit 1000 --batch-size 50
+# 从 ID "CN00100544.8" 之后导入，限制 1000 条，批次大小 50
+python tools/import_mysql_patent.py --start-id "CN00100544.8" --limit 1000 --batch-size 50
 
-# 从 ID 100000 之后导入，不保存中间数据
-python tools/import_mysql_patent.py --start-id 100000 --no-save-intermediate
+# 从 ID "CN00100544.8" 之后导入，不保存中间数据
+python tools/import_mysql_patent.py --start-id "CN00100544.8" --no-save-intermediate
 ```
 
 每次导入成功后会将最新ID号写入位置文件: "data/last_patent_id.txt"
@@ -1369,55 +1372,37 @@ python tools/import_mysql_patent.py --batch-size 20
 python tools/import_mysql_patent.py --start-id "CN00100544.8" --limit 10
 python tools/import_mysql_patent.py --start-id "CN00102970.3" --limit 10
 
+python tools/import_mysql_patent.py --start-id "CN200410091839.7"
 
 
 从当前ID 继续导入20条
 python tools/import_mysql_patent.py --limit 20
 
-从指定文件导入
+从指定的分段文件导入
 python tools/import_mysql_patent.py --from-file data/patent_CN00100160.4_patent.csv --resource patent
-
-
-python tools/import_mysql_patent.py --start-id "CN200410091839.7"
 
 ```
 
 分段导入：
 
-
 ```
-[
-	2520001,
-	"CN202220760856.9"
-],
-[
-	2550001,
-	"CN202221673402.4"
-],
-[
-	2580001,
-	"CN202222368070.5"
-],
-[
-	2610001,
-	"CN202223047465.1"
-],
+
+1920001, "CN202020414127.9"
+2220001, "CN202111391432.6"
+2520001, "CN202220760856.9"
 2640001, "CN202230489442.2"
 
-python tools/import_mysql_patent.py --start-id "CN202220760856.9" --limit 30000
-python tools/import_mysql_patent.py --start-id "CN202221673402.4" --limit 30000
-python tools/import_mysql_patent.py --start-id "CN202222368070.5" --limit 30000
-python tools/import_mysql_patent.py --start-id "CN202223047465.1" --limit 30000
-
-python tools/import_mysql_patent.py --start-id "CN202230489442.2"
-
+python tools/import_mysql_patent.py --start-id "CN202020414127.9" --limit 300000
+python tools/import_mysql_patent.py --start-id "CN202111391432.6" --limit 300000
+python tools/import_mysql_patent.py --start-id "CN202220760856.9" --limit 120000 --batch-size 20
+python tools/import_mysql_patent.py --start-id "CN202230489442.2" --batch-size 20
 ```
 
 
 ### 26.5 中间数据文件格式
 
 **CSV 文件包含以下字段**:
-- id: 原始ID
+- id: 原始ID7777
 - source_id: 源ID
 - region: 地域
 - maturity: 成熟度

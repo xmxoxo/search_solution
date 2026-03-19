@@ -1,0 +1,7 @@
+baselibs==0.1.15
+fire==0.7.0
+openai==2.26.0
+pandas==3.0.1
+pymilvus==2.5.0
+PyMySQL==1.1.2
+tqdm>=4.67.1

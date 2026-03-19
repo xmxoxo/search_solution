@@ -125,6 +125,53 @@ search_solution/
 }
 ```
 
+### 数据导入接口
+
+
+数据接口API: http://114.215.179.77:5310/docs
+
+接口地址: `/api/v1/data/insert`
+
+请求方法： POST
+
+请求数据：
+```
+{
+  "resource_type": "string",
+  "items": [
+    {
+      "id": "string",
+      "fields": {},
+      "raw_text_for_embedding": "string"
+    }
+  ],
+}
+```
+
+参数说明：
+
+	resource_type:	类型；可选：
+
+		支持的资源类型列表
+		RESOURCE_TYPES = [
+			"expert",       # 专家
+			"project",      # 项目
+			"patent",       # 专利
+			"enterprise",   # 企业
+			"paper",        # 论文
+			"institution",  # 高校/科研机构
+			"tec"           # 科技成果
+		]
+	items: 数据项；
+		id：ID号，资源唯一ID号；
+		raw_text_for_embedding: 文本内容，需要语义匹配的文本；
+		fields: 其它附加字段；为节省资源可不传；
+			title: 标题，专家可用姓名；
+
+
+
+
+
 ### 4.3 查询解析接口 `/parse-query`（内部调试）
 
 **请求**:
@@ -308,6 +355,8 @@ Linux/Mac环境：
 
 Docker部署：
 ```bash
+docker-compose down
+
 docker-compose build
 docker-compose up -d
 ```

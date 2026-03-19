@@ -1,3 +1,7 @@
+'''
+服务配置 测试环境
+'''
+
 import os
 from pathlib import Path
 
@@ -23,10 +27,12 @@ WEBUI_HOST = os.getenv("WEBUI_HOST", "0.0.0.0")
 # WebUI端口
 WEBUI_PORT = int(os.getenv("WEBUI_PORT", 5320))
 
-# One-API服务密钥 GQtwF5ag8p6m8wWf1232B8D5E17f4455A5C14e7a2d393aEe
+# One-API服务密钥 
+# root_token:GQtwF5ag8p6m8wWf1232B8D5E17f4455A5C14e7a2d393aEe
+# GPU_test:sk-pLLG2ucf61sKFjMxA0Fd11E88c734427A078Bc554e516e26
 ONE_API_KEY = os.getenv("ONE_API_KEY", 'sk-pLLG2ucf61sKFjMxA0Fd11E88c734427A078Bc554e516e26')
 # One-API服务地址
-ONE_API_BASE_URL = os.getenv("ONE_API_BASE_URL", "http://192.168.15.111:3000/v1")
+ONE_API_BASE_URL = os.getenv("ONE_API_BASE_URL", "http://localhost:3000/v1")
 
 # Embedding模型名称（用于生成向量） text-embedding-v4  bge-m3:latest
 EMBEDDING_MODEL_NAME = os.getenv("EMBEDDING_MODEL_NAME", "bge-m3:latest")
@@ -35,25 +41,25 @@ LLM_MODEL_NAME = os.getenv("LLM_MODEL_NAME", "qwen-max")
 
 # Redis连接配置
 GBL_REDIS_CONFIG = {
-    "host": os.getenv("REDIS_HOST", "192.168.15.111"),  # Redis主机地址
+    "host": os.getenv("REDIS_HOST", "localhost"),  # Redis主机地址
     "port": int(os.getenv("REDIS_PORT", 6379)),         # Redis端口
     "password": os.getenv("REDIS_PASSWORD", ""),        # Redis密码（可选）
     "db": int(os.getenv("REDIS_DB", 1))                 # Redis数据库编号
 }
 
 # SSDB连接地址
-SSDB_IP = os.getenv("SSDB_IP", "192.168.15.111")
+SSDB_IP = os.getenv("SSDB_IP", "localhost")
 # SSDB端口
 SSDB_PORT = int(os.getenv("SSDB_PORT", 8888))
 
 # Milvus向量数据库主机
-MILVUS_HOST = os.getenv("MILVUS_HOST", '192.168.15.111')
+MILVUS_HOST = os.getenv("MILVUS_HOST", 'localhost')
 # Milvus端口
 MILVUS_PORT = int(os.getenv("MILVUS_PORT", 19530))
 
 # MySQL数据库配置
 MYSQL_CONFIG = {
-    "host": os.getenv("MYSQL_HOST", "192.168.15.111"),    # MySQL主机地址
+    "host": os.getenv("MYSQL_HOST", "localhost"),    # MySQL主机地址
     "port": int(os.getenv("MYSQL_PORT", 3306)),           # MySQL端口
     "user": os.getenv("MYSQL_USER", "root"),              # MySQL用户名
     "password": os.getenv("MYSQL_PASSWORD", ""),          # MySQL密码
@@ -88,6 +94,11 @@ CACHE_TTL_LLM_PARSE = int(os.getenv("CACHE_TTL_LLM_PARSE", 86400))
 CACHE_TTL_EMBEDDING = int(os.getenv("CACHE_TTL_EMBEDDING", 604800))
 # 匹配结果缓存时间（秒，默认30秒）
 CACHE_TTL_MATCH_RESULT = int(os.getenv("CACHE_TTL_MATCH_RESULT", 30))
+
+# API端口地址
+API_BASE_URL = "http://localhost:5310"
+
+#-----------------------------------------
 
 # 中台数据库只读
 DATABASE_CONNECT_STRING = "mysql+pymysql://readonly_1633:9a06_qkiLMhQq5T@rm-bp1r9uw2zyl43lrxpdo.mysql.rds.aliyuncs.com:3306/data_middle_group"

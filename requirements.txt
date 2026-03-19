@@ -1,43 +1,20 @@
-fastapi==0.109.0
-uvicorn[standard]==0.27.0
-pydantic==2.5.3
-pydantic-settings==2.1.0
-
-streamlit==1.30.0
-
-openai==1.10.0
-
-pymilvus==2.5.0
-
-redis==5.0.1
-
-pyssdb==0.4.2
-
-PyMySQL==1.1.0
-sqlalchemy==2.0.25
-
-baselibs==0.1.15
-
-python-dotenv==1.0.0
-
-python-jose[cryptography]==3.3.0
-passlib[bcrypt]==1.7.4
-
-python-multipart==0.0.6
-
-aiofiles==23.2.1
-
-httpx==0.26.0
-
-tenacity==8.2.3
-
+# API
+fastapi>==0.110.0
 loguru==0.7.2
+numpy>=1.26.4
+openai>=1.28.0
+pydantic==2.5.3
+pymilvus==2.6.0
+redis>=5.0.6
+uvicorn[standard]==0.27.0
 
-pandas==2.2.0
-numpy==1.26.3
+# WebUI
+streamlit>=1.40.0
+plotly>=5.8.0
 
-scipy==1.12.0
-
-scikit-learn==1.4.0
-
-orjson==3.9.12
+# tools
+baselibs==0.1.15
+fire==0.7.0
+pandas>=2.1.0
+PyMySQL>=1.1.0
+tqdm>=4.67.1

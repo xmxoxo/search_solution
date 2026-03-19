@@ -8,9 +8,7 @@ import streamlit as st
 import requests
 import json
 import plotly.graph_objects as go
-from config.app_config import WEBUI_PORT, RESOURCE_TYPES
-
-API_BASE_URL = "http://192.168.40.64:5310"
+from config.app_config import WEBUI_PORT, RESOURCE_TYPES, API_BASE_URL
 
 st.set_page_config(
     page_title="智能匹配引擎",
